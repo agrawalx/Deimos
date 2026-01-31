@@ -1,0 +1,6 @@
+[package]
+name = "anemoi_256"
+type = "bin"
+authors = [""]
+
+[dependencies]

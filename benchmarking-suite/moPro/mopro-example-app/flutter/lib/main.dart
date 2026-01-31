@@ -21,6 +21,63 @@ class InputData {
   InputData({required this.name, required this.description, required this.values});
 }
 
+// Input size options (in bits)
+enum InputSize {
+  bits128(128, 16, 1),   // 128 bits = 16 bytes = 1 field element
+  bits256(256, 32, 2),   // 256 bits = 32 bytes = 2 field elements
+  bits512(512, 64, 3),   // 512 bits = 64 bytes = 3 field elements
+  bits1024(1024, 128, 5); // 1024 bits = 128 bytes = 5 field elements
+
+  final int bits;
+  final int bytes;
+  final int fieldElements;
+  
+  const InputSize(this.bits, this.bytes, this.fieldElements);
+  
+  String get displayName => '$bits bits';
+}
+
+// ZK-friendly hash algorithms that require field element inputs
+const List<String> zkFriendlyHashes = ['Poseidon', 'MiMC', 'Anemoi', 'RescuePrime'];
+
+// Non-ZK hash algorithms that require byte inputs
+const List<String> nonZkHashes = ['SHA256', 'Keccak256', 'Blake2', 'Blake3'];
+
+/// Converts a list of bytes to field elements by packing 31 bytes per field element.
+/// BN254 field elements can safely hold 31 bytes (248 bits) without overflow.
+List<BigInt> bytesToFieldElements(List<int> bytes) {
+  const int bytesPerField = 31;
+  List<BigInt> fieldElements = [];
+  
+  for (int i = 0; i < bytes.length; i += bytesPerField) {
+    BigInt fieldValue = BigInt.zero;
+    int end = (i + bytesPerField < bytes.length) ? i + bytesPerField : bytes.length;
+    
+    // Pack bytes into a single field element (big-endian)
+    for (int j = i; j < end; j++) {
+      fieldValue = (fieldValue << 8) | BigInt.from(bytes[j] & 0xFF);
+    }
+    
+    fieldElements.add(fieldValue);
+  }
+  
+  return fieldElements;
+}
+
+/// Converts field elements to hex strings for circuit input
+List<String> fieldElementsToHexStrings(List<BigInt> fieldElements) {
+  return fieldElements.map((fe) => '0x${fe.toRadixString(16)}').toList();
+}
+
+/// Pads or truncates byte array to exact size
+List<int> padOrTruncateBytes(List<int> bytes, int targetSize) {
+  if (bytes.length >= targetSize) {
+    return bytes.sublist(0, targetSize);
+  }
+  // Pad with zeros
+  return [...bytes, ...List.filled(targetSize - bytes.length, 0)];
+}
+
 
 class AppTheme {
   static const Color primary = Color(0xFF5B56E6);
@@ -73,6 +130,7 @@ class _MainSelectionPageState extends State<MainSelectionPage> {
   String? _selectedFramework;
   String? _selectedAlgorithm;
   String? _selectedInput;
+  InputSize _selectedInputSize = InputSize.bits256; // Default to 256 bits
   bool _isLoading = false;
   bool _isLoadingInputs = true;
   
@@ -174,6 +232,10 @@ class _MainSelectionPageState extends State<MainSelectionPage> {
               const SizedBox(height: 24),
               _buildAlgorithmSelection(),
               const SizedBox(height: 24),
+              if (_selectedFramework == 'noir' && _selectedAlgorithm != null) ...[
+                _buildInputSizeSelection(),
+                const SizedBox(height: 24),
+              ],
               _buildCustomInput(),
               const SizedBox(height: 32),
               _buildRunButton(),
@@ -441,6 +503,118 @@ class _MainSelectionPageState extends State<MainSelectionPage> {
     );
   }
 
+  Widget _buildInputSizeSelection() {
+    final isZkFriendly = _selectedAlgorithm != null && _isZkFriendlyHash(_selectedAlgorithm!);
+    
+    return _buildCard(
+      title: 'Step 3: Select Input Size',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            isZkFriendly 
+                ? 'Choose input size (will be converted to field elements)'
+                : 'Choose input size (bytes)',
+            style: const TextStyle(
+              fontSize: 14,
+              color: AppTheme.textSecondary,
+            ),
+          ),
+          const SizedBox(height: 16),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            decoration: BoxDecoration(
+              color: AppTheme.success.withOpacity(0.05),
+              border: Border.all(
+                color: AppTheme.success,
+                width: 2,
+              ),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton<InputSize>(
+                value: _selectedInputSize,
+                isExpanded: true,
+                icon: const Icon(Icons.arrow_drop_down, color: AppTheme.primary),
+                items: InputSize.values.map((size) {
+                  return DropdownMenuItem<InputSize>(
+                    value: size,
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.straighten,
+                          size: 18,
+                          color: AppTheme.success,
+                        ),
+                        const SizedBox(width: 12),
+                        Text(
+                          size.displayName,
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: AppTheme.text,
+                          ),
+                        ),
+                        const Spacer(),
+                        Text(
+                          isZkFriendly 
+                              ? '${size.fieldElements} field${size.fieldElements > 1 ? 's' : ''}'
+                              : '${size.bytes} bytes',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: AppTheme.textSecondary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }).toList(),
+                onChanged: (InputSize? newValue) {
+                  if (newValue != null) {
+                    setState(() {
+                      _selectedInputSize = newValue;
+                    });
+                  }
+                },
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: AppTheme.background,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: AppTheme.border),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.info_outline,
+                  size: 18,
+                  color: AppTheme.textSecondary,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    isZkFriendly
+                        ? 'ZK-friendly hash: Input bytes will be packed into ${_selectedInputSize.fieldElements} field element(s) (31 bytes per field)'
+                        : 'Non-ZK hash: Input will be ${_selectedInputSize.bytes} raw bytes',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: AppTheme.textSecondary,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildCustomInput() {
     if (_availableInputs.isEmpty) {
       return _buildCard(
@@ -455,8 +629,11 @@ class _MainSelectionPageState extends State<MainSelectionPage> {
       );
     }
 
+    // Adjust step number based on whether input size selection is shown
+    final stepNumber = (_selectedFramework == 'noir' && _selectedAlgorithm != null) ? 4 : 3;
+
     return _buildCard(
-      title: 'Step 3: Select Input',
+      title: 'Step $stepNumber: Select Input',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -618,6 +795,10 @@ class _MainSelectionPageState extends State<MainSelectionPage> {
                 _buildSummaryRow('Framework', _getFrameworkDisplayName(_selectedFramework!)),
                 const SizedBox(height: 10),
                 _buildSummaryRow('Circuit', _selectedAlgorithm!),
+                if (_selectedFramework == 'noir') ...[
+                  const SizedBox(height: 10),
+                  _buildSummaryRow('Input Size', _selectedInputSize.displayName),
+                ],
                 const SizedBox(height: 10),
                 _buildSummaryRow('Input', _selectedInput!),
               ],
@@ -774,12 +955,43 @@ class _MainSelectionPageState extends State<MainSelectionPage> {
       case 'halo2':
         return ['Fibonacci'];
       case 'noir':
-        return ['SHA256', 'Keccak256', 'Poseidon', 'MiMC', 'Pedersen', 'Blake2', 'Blake3', 'RescuePrime'];
+        // Base algorithms - size will be selected separately
+        return ['SHA256', 'Keccak256', 'Poseidon', 'MiMC', 'Blake2', 'Blake3', 'RescuePrime', 'Anemoi'];
       case 'risc0':
         return ['Factor'];
       default:
         return [];
     }
+  }
+
+  /// Gets the full circuit name including size suffix for Noir circuits
+  String _getNoirCircuitName(String algorithm, InputSize size) {
+    final baseName = algorithm.toLowerCase();
+    switch (baseName) {
+      case 'sha256':
+        return 'sha256_${size.bits}';
+      case 'keccak256':
+        return 'keccak256_${size.bits}';
+      case 'poseidon':
+        return 'poseidon_${size.bits}';
+      case 'mimc':
+        return 'mimc_${size.bits}';
+      case 'blake2':
+        return 'blake2_${size.bits}';
+      case 'blake3':
+        return 'blake3_${size.bits}';
+      case 'rescueprime':
+        return 'rescue_prime_${size.bits}';
+      case 'anemoi':
+        return 'anemoi_${size.bits}';
+      default:
+        return baseName;
+    }
+  }
+
+  /// Checks if an algorithm is ZK-friendly (requires field element inputs)
+  bool _isZkFriendlyHash(String algorithm) {
+    return zkFriendlyHashes.contains(algorithm);
   }
 
   void _runBenchmark() async {
@@ -804,6 +1016,7 @@ class _MainSelectionPageState extends State<MainSelectionPage> {
           algorithm: _selectedAlgorithm!,
           selectedInputName: _selectedInput!,
           selectedInputData: _availableInputs.firstWhere((input) => input.name == _selectedInput!),
+          inputSize: _selectedInputSize,
         ),
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
           const begin = Offset(1.0, 0.0);
@@ -904,6 +1117,7 @@ class ProofResultPage extends StatefulWidget {
   final String algorithm;
   final String selectedInputName;
   final InputData selectedInputData;
+  final InputSize inputSize;
 
   const ProofResultPage({
     super.key,
@@ -911,6 +1125,7 @@ class ProofResultPage extends StatefulWidget {
     required this.algorithm,
     required this.selectedInputName,
     required this.selectedInputData,
+    this.inputSize = InputSize.bits256, // Default for non-Noir frameworks
   });
 
   @override
@@ -933,7 +1148,10 @@ class _ProofResultPageState extends State<ProofResultPage> {
   Risc0ProofOutput? _risc0ProofResult;
   Risc0VerifyOutput? _risc0VerifyResult;
   
-  // Store Noir verification keys (like in old implementation)
+  // Store Noir verification keys - now organized by circuit name
+  final Map<String, Uint8List> _noirVerificationKeys = {};
+  
+  // Legacy verification key references (for backward compatibility)
   Uint8List? _noirMimcVerificationKey;
   Uint8List? _noirKeccakVerificationKey;
   Uint8List? _noirPoseidonVerificationKey;
@@ -942,6 +1160,7 @@ class _ProofResultPageState extends State<ProofResultPage> {
   Uint8List? _noirBlake2VerificationKey;
   Uint8List? _noirBlake3VerificationKey;
   Uint8List? _noirRescuePrimeVerificationKey;
+  Uint8List? _noirAnemoiVerificationKey;
   
   // Benchmarking timing
   Duration? _proofGenerationTime;
@@ -1119,6 +1338,28 @@ class _ProofResultPageState extends State<ProofResultPage> {
               color: AppTheme.text,
             ),
           ),
+          if (widget.framework.toLowerCase() == 'noir') ...[
+            const SizedBox(height: 8),
+            Text(
+              'Input Size: ${widget.inputSize.displayName} (${widget.inputSize.bytes} bytes)',
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: AppTheme.text,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              zkFriendlyHashes.contains(widget.algorithm)
+                  ? 'Type: ZK-friendly (${widget.inputSize.fieldElements} field element${widget.inputSize.fieldElements > 1 ? 's' : ''})'
+                  : 'Type: Non-ZK (raw bytes)',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                color: AppTheme.textSecondary,
+              ),
+            ),
+          ],
           const SizedBox(height: 8),
           Text(
             'Input: ${widget.selectedInputName}',
@@ -1138,12 +1379,14 @@ class _ProofResultPageState extends State<ProofResultPage> {
               border: Border.all(color: AppTheme.border),
             ),
             child: Text(
-              '[${widget.selectedInputData.values.join(', ')}]',
+              '[${widget.selectedInputData.values.take(widget.inputSize.bytes).join(', ')}${widget.selectedInputData.values.length > widget.inputSize.bytes ? ', ...' : ''}]',
               style: const TextStyle(
                 fontSize: 12,
                 fontFamily: 'monospace',
                 color: AppTheme.textSecondary,
               ),
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
             ),
           ),
         ],
@@ -1702,11 +1945,11 @@ class _ProofResultPageState extends State<ProofResultPage> {
   }
 
   Future<String> _generateNoirProof(MoproFlutter plugin) async {
-    // Get input data and convert to Noir format
+    // Get input data and convert to Noir format based on algorithm type
     final inputData = _getInputDataForAlgorithm();
     final List<String> noirInputs = _inputDataToNoirInput(inputData);
     
-    // Get the appropriate circuit path and settings
+    // Get the appropriate circuit path and settings (now uses inputSize)
     final (circuitPath, srsPath, onChain, vk) = await _getNoirSettings();
     
     // Capture memory and battery BEFORE proof generation
@@ -1806,160 +2049,65 @@ class _ProofResultPageState extends State<ProofResultPage> {
   Future<(String, String, bool, Uint8List)> _getNoirSettings() async {
     final moproFlutterPlugin = MoproFlutter();
     const bool lowMemoryMode = false;
-      
-      String assetPath;
-      String srsPath;
-      bool onChain;
-      Uint8List? verificationKey;
     
-    switch (widget.algorithm.toLowerCase()) {
-      case 'sha256':
-        assetPath = "assets/sha256.json";
-        srsPath = "assets/sha256.srs";
-          onChain = true;
-        if (_noirSha256VerificationKey == null) {
-            try {
-            final vkAsset = await rootBundle.load('assets/sha256.vk');
-            _noirSha256VerificationKey = vkAsset.buffer.asUint8List();
-            } catch (e) {
-            _noirSha256VerificationKey = await moproFlutterPlugin.getNoirVerificationKey(
-                assetPath, srsPath, onChain, lowMemoryMode,
-              );
-            }
-          }
-        verificationKey = _noirSha256VerificationKey;
-          break;
-      case 'RescuePrime':
-        assetPath = "assets/rescue_prime.json";
-        srsPath = "assets/rescue_prime.srs";
-          onChain = true;
-        if (_noirSha256VerificationKey == null) {
-            try {
-            final vkAsset = await rootBundle.load('assets/rescue_prime.vk');
-            _noirSha256VerificationKey = vkAsset.buffer.asUint8List();
-            } catch (e) {
-            _noirSha256VerificationKey = await moproFlutterPlugin.getNoirVerificationKey(
-                assetPath, srsPath, onChain, lowMemoryMode,
-              );
-            }
-          }
-        verificationKey = _noirSha256VerificationKey;
-          break;
-      case 'keccak256':
-          assetPath = "assets/keccak256.json";
-          srsPath = "assets/keccak256.srs";
-          onChain = true;
-          if (_noirKeccakVerificationKey == null) {
-            try {
-              final vkAsset = await rootBundle.load('assets/keccak.vk');
-              _noirKeccakVerificationKey = vkAsset.buffer.asUint8List();
-            } catch (e) {
-            _noirKeccakVerificationKey = await moproFlutterPlugin.getNoirVerificationKey(
-                assetPath, srsPath, onChain, lowMemoryMode,
-              );
-            }
-          }
-          verificationKey = _noirKeccakVerificationKey;
-          break;
-      case 'poseidon':
-          assetPath = "assets/poseidon.json";
-          srsPath = "assets/poseidon.srs";
-          onChain = false;
-          if (_noirPoseidonVerificationKey == null) {
-            try {
-              final vkAsset = await rootBundle.load('assets/poseidon.vk');
-              _noirPoseidonVerificationKey = vkAsset.buffer.asUint8List();
-            } catch (e) {
-            _noirPoseidonVerificationKey = await moproFlutterPlugin.getNoirVerificationKey(
-                assetPath, srsPath, onChain, lowMemoryMode,
-              );
-            }
-          }
-          verificationKey = _noirPoseidonVerificationKey;
-          break;
-      case 'mimc':
-        assetPath = "assets/mimc.json";
-        srsPath = "assets/mimc.srs";
-        onChain = true;
-        if (_noirMimcVerificationKey == null) {
-          try {
-            final vkAsset = await rootBundle.load('assets/mimc.vk');
-            _noirMimcVerificationKey = vkAsset.buffer.asUint8List();
-          } catch (e) {
-            _noirMimcVerificationKey = await moproFlutterPlugin.getNoirVerificationKey(
-              assetPath, srsPath, onChain, lowMemoryMode,
-            );
-          }
+    // Get the circuit name with size suffix
+    final circuitName = _getNoirCircuitNameForProof();
+    
+    // Build asset paths using circuit name
+    final String assetPath = "assets/$circuitName.json";
+    final String srsPath = "assets/$circuitName.srs";
+    final String vkPath = "assets/$circuitName.vk";
+    
+    // ZK-friendly hashes don't need onChain verification
+    final bool onChain = !zkFriendlyHashes.contains(widget.algorithm);
+    
+    // Try to load verification key from cache or assets
+    Uint8List? verificationKey = _noirVerificationKeys[circuitName];
+    
+    if (verificationKey == null) {
+      try {
+        final vkAsset = await rootBundle.load(vkPath);
+        verificationKey = vkAsset.buffer.asUint8List();
+        _noirVerificationKeys[circuitName] = verificationKey;
+      } catch (e) {
+        // Generate verification key if not found in assets
+        verificationKey = await moproFlutterPlugin.getNoirVerificationKey(
+          assetPath, srsPath, onChain, lowMemoryMode,
+        );
+        if (verificationKey != null) {
+          _noirVerificationKeys[circuitName] = verificationKey;
         }
-        verificationKey = _noirMimcVerificationKey;
-        break;
-      case 'pedersen':
-          assetPath = "assets/pedersen.json";
-          srsPath = "assets/pedersen.srs";
-          onChain = true;
-          if (_noirPedersenVerificationKey == null) {
-            try {
-              final vkAsset = await rootBundle.load('assets/pedersen.vk');
-              _noirPedersenVerificationKey = vkAsset.buffer.asUint8List();
-            } catch (e) {
-            _noirPedersenVerificationKey = await moproFlutterPlugin.getNoirVerificationKey(
-                assetPath, srsPath, onChain, lowMemoryMode,
-              );
-            }
-          }
-          verificationKey = _noirPedersenVerificationKey;
-          break;
-      case 'blake2':
-          assetPath = "assets/blake2.json";
-          srsPath = "assets/blake2.srs";
-          onChain = true;
-          if (_noirBlake2VerificationKey == null) {
-            try {
-              final vkAsset = await rootBundle.load('assets/blake2.vk');
-              _noirBlake2VerificationKey = vkAsset.buffer.asUint8List();
-            } catch (e) {
-            _noirBlake2VerificationKey = await moproFlutterPlugin.getNoirVerificationKey(
-                assetPath, srsPath, onChain, lowMemoryMode,
-              );
-            }
-          }
-          verificationKey = _noirBlake2VerificationKey;
-          break;
-      case 'blake3':
-          assetPath = "assets/blake3.json";
-          srsPath = "assets/blake3.srs";
-          onChain = true;
-          if (_noirBlake3VerificationKey == null) {
-            try {
-              final vkAsset = await rootBundle.load('assets/blake3.vk');
-              _noirBlake3VerificationKey = vkAsset.buffer.asUint8List();
-            } catch (e) {
-            _noirBlake3VerificationKey = await moproFlutterPlugin.getNoirVerificationKey(
-                assetPath, srsPath, onChain, lowMemoryMode,
-              );
-            }
-          }
-          verificationKey = _noirBlake3VerificationKey;
-          break;
-      default:
-          assetPath = "assets/sha256.json";
-          srsPath = "assets/sha256.srs";
-          onChain = true;
-          if (_noirSha256VerificationKey == null) {
-            try {
-              final vkAsset = await rootBundle.load('assets/sha256.vk');
-              _noirSha256VerificationKey = vkAsset.buffer.asUint8List();
-            } catch (e) {
-            _noirSha256VerificationKey = await moproFlutterPlugin.getNoirVerificationKey(
-                assetPath, srsPath, onChain, lowMemoryMode,
-              );
-            }
-          }
-          verificationKey = _noirSha256VerificationKey;
-          break;
+      }
     }
     
     return (assetPath, srsPath, onChain, verificationKey!);
+  }
+
+  /// Gets the circuit name for the current algorithm and input size
+  String _getNoirCircuitNameForProof() {
+    final baseName = widget.algorithm.toLowerCase();
+    final size = widget.inputSize.bits;
+    
+    switch (baseName) {
+      case 'sha256':
+        return 'sha256_$size';
+      case 'keccak256':
+        return 'keccak256_$size';
+      case 'poseidon':
+        return 'poseidon_$size';
+      case 'mimc':
+        return 'mimc_$size';
+      case 'blake2':
+        return 'blake2_$size';
+      case 'blake3':
+        return 'blake3_$size';
+      case 'rescueprime':
+        return 'rescue_prime_$size';
+      case 'anemoi':
+        return 'anemoi_$size';
+      default:
+        return baseName;
+    }
   }
 
   String _formatCircomProofOutput(CircomProofResult proofResult) {
@@ -2045,7 +2193,20 @@ Timestamp: ${DateTime.now().millisecondsSinceEpoch}
     // Get the selected input data from JSON file
     List<String> inputData = widget.selectedInputData.values;
     
-    // Special case for Poseidon: use exactly 8 bytes (as per the circuit requirement)
+    // For Noir framework, use the selected input size
+    if (widget.framework.toLowerCase() == 'noir') {
+      final targetBytes = widget.inputSize.bytes;
+      
+      // Convert string values to bytes
+      List<int> bytes = inputData.map((s) => int.tryParse(s) ?? 0).toList();
+      
+      // Pad or truncate to target size
+      bytes = padOrTruncateBytes(bytes, targetBytes);
+      
+      return bytes.map((b) => b.toString()).toList();
+    }
+    
+    // Special case for Poseidon (Circom): use exactly 8 bytes (as per the circuit requirement)
     if (widget.algorithm.toLowerCase() == 'poseidon') {
       // Take first 8 bytes, pad with zeros if needed
       List<String> poseidonInput = inputData.take(8).toList();
@@ -2079,13 +2240,28 @@ Timestamp: ${DateTime.now().millisecondsSinceEpoch}
   }
 
   List<String> _inputDataToNoirInput(List<String> inputData) {
-    // For Noir, we need to pad to 32 bytes if necessary
-    final paddedData = List<String>.from(inputData);
-    while (paddedData.length < 32) {
-      paddedData.add('0');
+    // Check if this is a ZK-friendly hash that needs field element conversion
+    final isZkFriendly = zkFriendlyHashes.contains(widget.algorithm);
+    
+    if (isZkFriendly) {
+      // Convert bytes to field elements for ZK-friendly hashes
+      final bytes = inputData.map((s) => int.tryParse(s) ?? 0).toList();
+      final fieldElements = bytesToFieldElements(bytes);
+      
+      // Convert field elements to hex strings
+      return fieldElementsToHexStrings(fieldElements);
+    } else {
+      // For non-ZK hashes, just return the bytes as-is
+      // Ensure we have exactly the right number of bytes for the input size
+      final targetBytes = widget.inputSize.bytes;
+      final paddedData = List<String>.from(inputData);
+      
+      while (paddedData.length < targetBytes) {
+        paddedData.add('0');
+      }
+      
+      return paddedData.take(targetBytes).toList();
     }
-    // Take only first 32 bytes if longer
-    return paddedData.take(32).toList();
   }
 
   void _verifyProof() async {
