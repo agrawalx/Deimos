@@ -72,7 +72,6 @@ class _MainSelectionPageState extends State<MainSelectionPage> {
   // Selection state
   String? _selectedFramework;
   String? _selectedAlgorithm;
-  String? _selectedInput;
   bool _isLoading = false;
   bool _isLoadingInputs = true;
   
@@ -88,7 +87,7 @@ class _MainSelectionPageState extends State<MainSelectionPage> {
     try {
       final List<InputData> loadedInputs = [];
       
-      // Load input files
+      // Load byte-based input files (input_1, input_2, input_3)
       for (int i = 1; i <= 3; i++) {
         try {
           final inputData = await _loadInputFromJson('inputs/input_$i.json');
@@ -98,12 +97,19 @@ class _MainSelectionPageState extends State<MainSelectionPage> {
         }
       }
       
+      // Load field-based input files (field_input_1, field_input_2, etc.)
+      for (final fieldCount in [1, 2, 3, 5, 9, 17, 34]) {
+        try {
+          final inputData = await _loadInputFromJson('inputs/field_input_$fieldCount.json');
+          loadedInputs.add(inputData);
+        } catch (e) {
+          debugPrint('Error loading field_input_$fieldCount.json: $e');
+        }
+      }
+      
       setState(() {
         _availableInputs = loadedInputs;
         _isLoadingInputs = false;
-        if (_availableInputs.isNotEmpty) {
-          _selectedInput = _availableInputs.first.name;
-        }
       });
     } catch (e) {
       debugPrint('Error loading inputs: $e');
@@ -173,8 +179,6 @@ class _MainSelectionPageState extends State<MainSelectionPage> {
               _buildFrameworkSelection(),
               const SizedBox(height: 24),
               _buildAlgorithmSelection(),
-              const SizedBox(height: 24),
-              _buildCustomInput(),
               const SizedBox(height: 32),
               _buildRunButton(),
             ],
@@ -441,145 +445,12 @@ class _MainSelectionPageState extends State<MainSelectionPage> {
     );
   }
 
-  Widget _buildCustomInput() {
-    if (_availableInputs.isEmpty) {
-      return _buildCard(
-        title: 'Select Input',
-        child: const Text(
-          'No inputs available. Please check input files.',
-          style: TextStyle(
-            fontSize: 14,
-            color: AppTheme.textSecondary,
-          ),
-        ),
-      );
-    }
-
-    return _buildCard(
-      title: 'Step 3: Select Input',
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Choose a predefined input for benchmarking',
-            style: TextStyle(
-              fontSize: 14,
-              color: AppTheme.textSecondary,
-            ),
-          ),
-          const SizedBox(height: 16),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-            decoration: BoxDecoration(
-              color: AppTheme.surface,
-              border: Border.all(color: AppTheme.border, width: 2),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: DropdownButtonHideUnderline(
-              child: DropdownButton<String>(
-                value: _selectedInput,
-                hint: Row(
-                  children: const [
-                    Icon(Icons.input, size: 20, color: AppTheme.textSecondary),
-                    SizedBox(width: 12),
-                    Text(
-                      'Select an input',
-                      style: TextStyle(
-                        fontSize: 16,
-                        color: AppTheme.textSecondary,
-                      ),
-                    ),
-                  ],
-                ),
-                isExpanded: true,
-                icon: const Icon(Icons.arrow_drop_down, color: AppTheme.primary),
-                items: _availableInputs.map((InputData input) {
-                  return DropdownMenuItem<String>(
-                    value: input.name,
-                    child: Row(
-                      children: [
-                        const Icon(
-                          Icons.data_object,
-                          size: 18,
-                          color: AppTheme.accent,
-                        ),
-                        const SizedBox(width: 12),
-                        Text(
-                          input.name,
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                            color: AppTheme.text,
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
-                }).toList(),
-                onChanged: (String? newValue) {
-                  setState(() {
-                    _selectedInput = newValue;
-                  });
-                },
-              ),
-            ),
-          ),
-          if (_selectedInput != null) ...[
-            const SizedBox(height: 16),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: AppTheme.background,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: AppTheme.border),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Input Data',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: AppTheme.text,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    _getSelectedInputPreview(),
-                    style: const TextStyle(
-                      fontSize: 13,
-                      color: AppTheme.textSecondary,
-                      fontFamily: 'monospace',
-                      height: 1.5,
-                    ),
-                    maxLines: 3,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
 
 
-  String _getSelectedInputPreview() {
-    if (_selectedInput == null) return '';
-    final input = _availableInputs.firstWhere((input) => input.name == _selectedInput);
-    return _formatInputPreview(input.values);
-  }
 
-  String _formatInputPreview(List<String> values, {int maxItems = 1000}) {
-    return '[${values.join(', ')}]';
-  }
 
   Widget _buildRunButton() {
-    final canRun = _selectedFramework != null && _selectedAlgorithm != null && _selectedInput != null;
+    final canRun = _selectedFramework != null && _selectedAlgorithm != null;
     
     return Column(
       children: [
@@ -618,8 +489,6 @@ class _MainSelectionPageState extends State<MainSelectionPage> {
                 _buildSummaryRow('Framework', _getFrameworkDisplayName(_selectedFramework!)),
                 const SizedBox(height: 10),
                 _buildSummaryRow('Circuit', _selectedAlgorithm!),
-                const SizedBox(height: 10),
-                _buildSummaryRow('Input', _selectedInput!),
               ],
             ),
           ),
@@ -767,6 +636,41 @@ class _MainSelectionPageState extends State<MainSelectionPage> {
     }
   }
 
+  InputData? _getAppropriateInput(String algorithm) {
+    final algoLower = algorithm.toLowerCase();
+    
+    // Field-based circuits (ending in 'F')
+    if (algoLower.endsWith('f')) {
+      // Extract field count from algorithm name (e.g., "Poseidon_5F" -> "5")
+      final parts = algoLower.split('_');
+      if (parts.length >= 2) {
+        final sizeStr = parts.last.replaceAll('f', '');
+        final fieldCount = int.tryParse(sizeStr);
+        
+        if (fieldCount != null) {
+          // Find matching field input
+          try {
+            return _availableInputs.firstWhere(
+              (input) => input.name == 'Field Input $fieldCount',
+            );
+          } catch (e) {
+            debugPrint('No matching field input for $fieldCount fields');
+          }
+        }
+      }
+    }
+    
+    // Byte-based circuits or default - use Input 1
+    try {
+      return _availableInputs.firstWhere(
+        (input) => input.name == 'Input 1',
+      );
+    } catch (e) {
+      debugPrint('No default input found');
+      return _availableInputs.isNotEmpty ? _availableInputs.first : null;
+    }
+  }
+
   List<String> _getAlgorithmsForFramework(String framework) {
     switch (framework) {
       case 'circom':
@@ -774,7 +678,18 @@ class _MainSelectionPageState extends State<MainSelectionPage> {
       case 'halo2':
         return ['Fibonacci'];
       case 'noir':
-        return ['SHA256', 'Keccak256', 'Poseidon', 'MiMC', 'Pedersen', 'Blake2', 'Blake3', 'RescuePrime'];
+        return [
+          // Byte-based circuits
+          'Blake3_16B', 'Blake3_32B', 'Blake3_64B', 'Blake3_128B', 'Blake3_256B', 'Blake3_512B',
+          'Blake2_16B', 'Blake2_32B', 'Blake2_64B', 'Blake2_128B', 'Blake2_256B', 'Blake2_512B', 'Blake2_1028B',
+          'SHA256_16B', 'SHA256_32B', 'SHA256_64B', 'SHA256_128B', 'SHA256_256B', 'SHA256_512B', 'SHA256_1028B',
+          'Keccak256_16B', 'Keccak256_32B', 'Keccak256_64B', 'Keccak256_128B', 'Keccak256_256B', 'Keccak256_512B', 'Keccak256_1028B',
+          // Field-based circuits
+          'Poseidon_1F', 'Poseidon_2F', 'Poseidon_3F', 'Poseidon_5F', 'Poseidon_9F', 'Poseidon_17F', 'Poseidon_34F',
+          'MiMC_1F', 'MiMC_2F', 'MiMC_3F', 'MiMC_5F', 'MiMC_9F', 'MiMC_17F', 'MiMC_34F',
+          'RescuePrime_1F', 'RescuePrime_2F', 'RescuePrime_3F', 'RescuePrime_5F', 'RescuePrime_9F', 'RescuePrime_17F', 'RescuePrime_34F',
+          'Anemoi_1F', 'Anemoi_2F', 'Anemoi_3F', 'Anemoi_5F', 'Anemoi_9F', 'Anemoi_17F', 'Anemoi_34F',
+        ];
       case 'risc0':
         return ['Factor'];
       default:
@@ -783,7 +698,11 @@ class _MainSelectionPageState extends State<MainSelectionPage> {
   }
 
   void _runBenchmark() async {
-    if (_selectedFramework == null || _selectedAlgorithm == null || _selectedInput == null) return;
+    if (_selectedFramework == null || _selectedAlgorithm == null) return;
+
+    // Auto-select appropriate input based on circuit type
+    final selectedInput = _getAppropriateInput(_selectedAlgorithm!);
+    if (selectedInput == null) return;
 
     // Immediately show loading state
     setState(() {
@@ -802,8 +721,8 @@ class _MainSelectionPageState extends State<MainSelectionPage> {
         pageBuilder: (context, animation, secondaryAnimation) => ProofResultPage(
           framework: _selectedFramework!,
           algorithm: _selectedAlgorithm!,
-          selectedInputName: _selectedInput!,
-          selectedInputData: _availableInputs.firstWhere((input) => input.name == _selectedInput!),
+          selectedInputName: selectedInput.name,
+          selectedInputData: selectedInput,
         ),
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
           const begin = Offset(1.0, 0.0);
@@ -1807,156 +1726,92 @@ class _ProofResultPageState extends State<ProofResultPage> {
     final moproFlutterPlugin = MoproFlutter();
     const bool lowMemoryMode = false;
       
-      String assetPath;
-      String srsPath;
-      bool onChain;
-      Uint8List? verificationKey;
+    String assetPath;
+    String srsPath;
+    bool onChain = true;
+    Uint8List? verificationKey;
     
-    switch (widget.algorithm.toLowerCase()) {
-      case 'sha256':
-        assetPath = "assets/sha256.json";
-        srsPath = "assets/sha256.srs";
-          onChain = true;
-        if (_noirSha256VerificationKey == null) {
-            try {
-            final vkAsset = await rootBundle.load('assets/sha256.vk');
-            _noirSha256VerificationKey = vkAsset.buffer.asUint8List();
-            } catch (e) {
-            _noirSha256VerificationKey = await moproFlutterPlugin.getNoirVerificationKey(
-                assetPath, srsPath, onChain, lowMemoryMode,
-              );
-            }
-          }
-        verificationKey = _noirSha256VerificationKey;
+    // Parse algorithm name to extract hash type and size
+    final algoLower = widget.algorithm.toLowerCase();
+    
+    // Byte-based circuits
+    if (algoLower.contains('blake3_') && algoLower.endsWith('b')) {
+      final size = algoLower.replaceAll('blake3_', '').replaceAll('b', '');
+      assetPath = "assets/blake3_bytes_$size.json";
+      srsPath = "assets/blake3_bytes_$size.srs";
+      verificationKey = await moproFlutterPlugin.getNoirVerificationKey(assetPath, srsPath, onChain, lowMemoryMode);
+    } else if (algoLower.contains('blake2_') && algoLower.endsWith('b')) {
+      final size = algoLower.replaceAll('blake2_', '').replaceAll('b', '');
+      assetPath = "assets/blake2_bytes_$size.json";
+      srsPath = "assets/blake2_bytes_$size.srs";
+      verificationKey = await moproFlutterPlugin.getNoirVerificationKey(assetPath, srsPath, onChain, lowMemoryMode);
+    } else if (algoLower.contains('sha256_') && algoLower.endsWith('b')) {
+      final size = algoLower.replaceAll('sha256_', '').replaceAll('b', '');
+      assetPath = "assets/sha256_bytes_$size.json";
+      srsPath = "assets/sha256_bytes_$size.srs";
+      verificationKey = await moproFlutterPlugin.getNoirVerificationKey(assetPath, srsPath, onChain, lowMemoryMode);
+    } else if (algoLower.contains('keccak256_') && algoLower.endsWith('b')) {
+      final size = algoLower.replaceAll('keccak256_', '').replaceAll('b', '');
+      assetPath = "assets/keccak256_bytes_$size.json";
+      srsPath = "assets/keccak256_bytes_$size.srs";
+      verificationKey = await moproFlutterPlugin.getNoirVerificationKey(assetPath, srsPath, onChain, lowMemoryMode);
+    }
+    // Field-based circuits
+    else if (algoLower.contains('poseidon_') && algoLower.endsWith('f')) {
+      final size = algoLower.replaceAll('poseidon_', '').replaceAll('f', '');
+      assetPath = "assets/poseidon_field_$size.json";
+      srsPath = "assets/poseidon_field_$size.srs";
+      onChain = false;
+      verificationKey = await moproFlutterPlugin.getNoirVerificationKey(assetPath, srsPath, onChain, lowMemoryMode);
+    } else if (algoLower.contains('mimc_') && algoLower.endsWith('f')) {
+      final size = algoLower.replaceAll('mimc_', '').replaceAll('f', '');
+      assetPath = "assets/mimc_field_$size.json";
+      srsPath = "assets/mimc_field_$size.srs";
+      verificationKey = await moproFlutterPlugin.getNoirVerificationKey(assetPath, srsPath, onChain, lowMemoryMode);
+    } else if (algoLower.contains('rescueprime_') && algoLower.endsWith('f')) {
+      final size = algoLower.replaceAll('rescueprime_', '').replaceAll('f', '');
+      assetPath = "assets/rescue_prime_field_$size.json";
+      srsPath = "assets/rescue_prime_field_$size.srs";
+      verificationKey = await moproFlutterPlugin.getNoirVerificationKey(assetPath, srsPath, onChain, lowMemoryMode);
+    } else if (algoLower.contains('anemoi_') && algoLower.endsWith('f')) {
+      final size = algoLower.replaceAll('anemoi_', '').replaceAll('f', '');
+      assetPath = "assets/anemoi_field_$size.json";
+      srsPath = "assets/anemoi_field_$size.srs";
+      verificationKey = await moproFlutterPlugin.getNoirVerificationKey(assetPath, srsPath, onChain, lowMemoryMode);
+    }
+    // Legacy circuit names (for backward compatibility)
+    else {
+      switch (algoLower) {
+        case 'sha256':
+          assetPath = "assets/sha256.json";
+          srsPath = "assets/sha256.srs";
           break;
-      case 'RescuePrime':
-        assetPath = "assets/rescue_prime.json";
-        srsPath = "assets/rescue_prime.srs";
-          onChain = true;
-        if (_noirSha256VerificationKey == null) {
-            try {
-            final vkAsset = await rootBundle.load('assets/rescue_prime.vk');
-            _noirSha256VerificationKey = vkAsset.buffer.asUint8List();
-            } catch (e) {
-            _noirSha256VerificationKey = await moproFlutterPlugin.getNoirVerificationKey(
-                assetPath, srsPath, onChain, lowMemoryMode,
-              );
-            }
-          }
-        verificationKey = _noirSha256VerificationKey;
-          break;
-      case 'keccak256':
+        case 'keccak256':
           assetPath = "assets/keccak256.json";
           srsPath = "assets/keccak256.srs";
-          onChain = true;
-          if (_noirKeccakVerificationKey == null) {
-            try {
-              final vkAsset = await rootBundle.load('assets/keccak.vk');
-              _noirKeccakVerificationKey = vkAsset.buffer.asUint8List();
-            } catch (e) {
-            _noirKeccakVerificationKey = await moproFlutterPlugin.getNoirVerificationKey(
-                assetPath, srsPath, onChain, lowMemoryMode,
-              );
-            }
-          }
-          verificationKey = _noirKeccakVerificationKey;
           break;
-      case 'poseidon':
+        case 'poseidon':
           assetPath = "assets/poseidon.json";
           srsPath = "assets/poseidon.srs";
           onChain = false;
-          if (_noirPoseidonVerificationKey == null) {
-            try {
-              final vkAsset = await rootBundle.load('assets/poseidon.vk');
-              _noirPoseidonVerificationKey = vkAsset.buffer.asUint8List();
-            } catch (e) {
-            _noirPoseidonVerificationKey = await moproFlutterPlugin.getNoirVerificationKey(
-                assetPath, srsPath, onChain, lowMemoryMode,
-              );
-            }
-          }
-          verificationKey = _noirPoseidonVerificationKey;
           break;
-      case 'mimc':
-        assetPath = "assets/mimc.json";
-        srsPath = "assets/mimc.srs";
-        onChain = true;
-        if (_noirMimcVerificationKey == null) {
-          try {
-            final vkAsset = await rootBundle.load('assets/mimc.vk');
-            _noirMimcVerificationKey = vkAsset.buffer.asUint8List();
-          } catch (e) {
-            _noirMimcVerificationKey = await moproFlutterPlugin.getNoirVerificationKey(
-              assetPath, srsPath, onChain, lowMemoryMode,
-            );
-          }
-        }
-        verificationKey = _noirMimcVerificationKey;
-        break;
-      case 'pedersen':
-          assetPath = "assets/pedersen.json";
-          srsPath = "assets/pedersen.srs";
-          onChain = true;
-          if (_noirPedersenVerificationKey == null) {
-            try {
-              final vkAsset = await rootBundle.load('assets/pedersen.vk');
-              _noirPedersenVerificationKey = vkAsset.buffer.asUint8List();
-            } catch (e) {
-            _noirPedersenVerificationKey = await moproFlutterPlugin.getNoirVerificationKey(
-                assetPath, srsPath, onChain, lowMemoryMode,
-              );
-            }
-          }
-          verificationKey = _noirPedersenVerificationKey;
+        case 'mimc':
+          assetPath = "assets/mimc.json";
+          srsPath = "assets/mimc.srs";
           break;
-      case 'blake2':
+        case 'blake2':
           assetPath = "assets/blake2.json";
           srsPath = "assets/blake2.srs";
-          onChain = true;
-          if (_noirBlake2VerificationKey == null) {
-            try {
-              final vkAsset = await rootBundle.load('assets/blake2.vk');
-              _noirBlake2VerificationKey = vkAsset.buffer.asUint8List();
-            } catch (e) {
-            _noirBlake2VerificationKey = await moproFlutterPlugin.getNoirVerificationKey(
-                assetPath, srsPath, onChain, lowMemoryMode,
-              );
-            }
-          }
-          verificationKey = _noirBlake2VerificationKey;
           break;
-      case 'blake3':
+        case 'blake3':
           assetPath = "assets/blake3.json";
           srsPath = "assets/blake3.srs";
-          onChain = true;
-          if (_noirBlake3VerificationKey == null) {
-            try {
-              final vkAsset = await rootBundle.load('assets/blake3.vk');
-              _noirBlake3VerificationKey = vkAsset.buffer.asUint8List();
-            } catch (e) {
-            _noirBlake3VerificationKey = await moproFlutterPlugin.getNoirVerificationKey(
-                assetPath, srsPath, onChain, lowMemoryMode,
-              );
-            }
-          }
-          verificationKey = _noirBlake3VerificationKey;
           break;
-      default:
+        default:
           assetPath = "assets/sha256.json";
           srsPath = "assets/sha256.srs";
-          onChain = true;
-          if (_noirSha256VerificationKey == null) {
-            try {
-              final vkAsset = await rootBundle.load('assets/sha256.vk');
-              _noirSha256VerificationKey = vkAsset.buffer.asUint8List();
-            } catch (e) {
-            _noirSha256VerificationKey = await moproFlutterPlugin.getNoirVerificationKey(
-                assetPath, srsPath, onChain, lowMemoryMode,
-              );
-            }
-          }
-          verificationKey = _noirSha256VerificationKey;
-          break;
+      }
+      verificationKey = await moproFlutterPlugin.getNoirVerificationKey(assetPath, srsPath, onChain, lowMemoryMode);
     }
     
     return (assetPath, srsPath, onChain, verificationKey!);
@@ -2079,13 +1934,29 @@ Timestamp: ${DateTime.now().millisecondsSinceEpoch}
   }
 
   List<String> _inputDataToNoirInput(List<String> inputData) {
-    // For Noir, we need to pad to 32 bytes if necessary
+    // For field-based circuits, return the data as-is (already in correct format)
+    final algoLower = widget.algorithm.toLowerCase();
+    if (algoLower.endsWith('f')) {
+      return inputData;
+    }
+    
+    // For byte-based circuits, pad to required size
     final paddedData = List<String>.from(inputData);
-    while (paddedData.length < 32) {
+    
+    // Determine required size from algorithm name
+    int requiredSize = 32; // default
+    if (algoLower.contains('_')) {
+      final sizeStr = algoLower.split('_').last.replaceAll('b', '');
+      requiredSize = int.tryParse(sizeStr) ?? 32;
+    }
+    
+    // Pad with zeros if needed
+    while (paddedData.length < requiredSize) {
       paddedData.add('0');
     }
-    // Take only first 32 bytes if longer
-    return paddedData.take(32).toList();
+    
+    // Truncate if too long
+    return paddedData.take(requiredSize).toList();
   }
 
   void _verifyProof() async {

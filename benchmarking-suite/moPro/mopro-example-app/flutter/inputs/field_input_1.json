@@ -1,0 +1,7 @@
+{
+    "name": "Field Input 1",
+    "description": "Single field element input",
+    "in": [
+        "123456789"
+    ]
+}

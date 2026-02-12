@@ -87,9 +87,136 @@ flutter:
     - assets/blake2.srs
     - assets/blake3.json
     - assets/blake3.srs
+    # Blake3 byte circuits
+    - assets/blake3_bytes_16.json
+    - assets/blake3_bytes_16.srs
+    - assets/blake3_bytes_32.json
+    - assets/blake3_bytes_32.srs
+    - assets/blake3_bytes_64.json
+    - assets/blake3_bytes_64.srs
+    - assets/blake3_bytes_128.json
+    - assets/blake3_bytes_128.srs
+    - assets/blake3_bytes_256.json
+    - assets/blake3_bytes_256.srs
+    - assets/blake3_bytes_512.json
+    - assets/blake3_bytes_512.srs
+    # Blake2 byte circuits
+    - assets/blake2_bytes_16.json
+    - assets/blake2_bytes_16.srs
+    - assets/blake2_bytes_32.json
+    - assets/blake2_bytes_32.srs
+    - assets/blake2_bytes_64.json
+    - assets/blake2_bytes_64.srs
+    - assets/blake2_bytes_128.json
+    - assets/blake2_bytes_128.srs
+    - assets/blake2_bytes_256.json
+    - assets/blake2_bytes_256.srs
+    - assets/blake2_bytes_512.json
+    - assets/blake2_bytes_512.srs
+    - assets/blake2_bytes_1028.json
+    - assets/blake2_bytes_1028.srs
+    # SHA256 byte circuits
+    - assets/sha256_bytes_16.json
+    - assets/sha256_bytes_16.srs
+    - assets/sha256_bytes_32.json
+    - assets/sha256_bytes_32.srs
+    - assets/sha256_bytes_64.json
+    - assets/sha256_bytes_64.srs
+    - assets/sha256_bytes_128.json
+    - assets/sha256_bytes_128.srs
+    - assets/sha256_bytes_256.json
+    - assets/sha256_bytes_256.srs
+    - assets/sha256_bytes_512.json
+    - assets/sha256_bytes_512.srs
+    - assets/sha256_bytes_1028.json
+    - assets/sha256_bytes_1028.srs
+    # Keccak256 byte circuits
+    - assets/keccak256_bytes_16.json
+    - assets/keccak256_bytes_16.srs
+    - assets/keccak256_bytes_32.json
+    - assets/keccak256_bytes_32.srs
+    - assets/keccak256_bytes_64.json
+    - assets/keccak256_bytes_64.srs
+    - assets/keccak256_bytes_128.json
+    - assets/keccak256_bytes_128.srs
+    - assets/keccak256_bytes_256.json
+    - assets/keccak256_bytes_256.srs
+    - assets/keccak256_bytes_512.json
+    - assets/keccak256_bytes_512.srs
+    - assets/keccak256_bytes_1028.json
+    - assets/keccak256_bytes_1028.srs
+    # Poseidon field circuits
+    - assets/poseidon_field_1.json
+    - assets/poseidon_field_1.srs
+    - assets/poseidon_field_2.json
+    - assets/poseidon_field_2.srs
+    - assets/poseidon_field_3.json
+    - assets/poseidon_field_3.srs
+    - assets/poseidon_field_5.json
+    - assets/poseidon_field_5.srs
+    - assets/poseidon_field_9.json
+    - assets/poseidon_field_9.srs
+    - assets/poseidon_field_17.json
+    - assets/poseidon_field_17.srs
+    - assets/poseidon_field_34.json
+    - assets/poseidon_field_34.srs
+    # MiMC field circuits
+    - assets/mimc_field_1.json
+    - assets/mimc_field_1.srs
+    - assets/mimc_field_2.json
+    - assets/mimc_field_2.srs
+    - assets/mimc_field_3.json
+    - assets/mimc_field_3.srs
+    - assets/mimc_field_5.json
+    - assets/mimc_field_5.srs
+    - assets/mimc_field_9.json
+    - assets/mimc_field_9.srs
+    - assets/mimc_field_17.json
+    - assets/mimc_field_17.srs
+    - assets/mimc_field_34.json
+    - assets/mimc_field_34.srs
+    # Rescue Prime field circuits
+    - assets/rescue_prime_field_1.json
+    - assets/rescue_prime_field_1.srs
+    - assets/rescue_prime_field_2.json
+    - assets/rescue_prime_field_2.srs
+    - assets/rescue_prime_field_3.json
+    - assets/rescue_prime_field_3.srs
+    - assets/rescue_prime_field_5.json
+    - assets/rescue_prime_field_5.srs
+    - assets/rescue_prime_field_9.json
+    - assets/rescue_prime_field_9.srs
+    - assets/rescue_prime_field_17.json
+    - assets/rescue_prime_field_17.srs
+    - assets/rescue_prime_field_34.json
+    - assets/rescue_prime_field_34.srs
+    # Anemoi field circuits
+    - assets/anemoi_field_1.json
+    - assets/anemoi_field_1.srs
+    - assets/anemoi_field_2.json
+    - assets/anemoi_field_2.srs
+    - assets/anemoi_field_3.json
+    - assets/anemoi_field_3.srs
+    - assets/anemoi_field_5.json
+    - assets/anemoi_field_5.srs
+    - assets/anemoi_field_9.json
+    - assets/anemoi_field_9.srs
+    - assets/anemoi_field_17.json
+    - assets/anemoi_field_17.srs
+    - assets/anemoi_field_34.json
+    - assets/anemoi_field_34.srs
+    # Input files
     - inputs/input_1.json
     - inputs/input_2.json
     - inputs/input_3.json
+    - inputs/field_input_1.json
+    - inputs/field_input_2.json
+    - inputs/field_input_3.json
+    - inputs/field_input_5.json
+    - inputs/field_input_9.json
+    - inputs/field_input_17.json
+    - inputs/field_input_34.json
+
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/assets-and-images/#resolution-aware
