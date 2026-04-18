@@ -1,4 +1,4 @@
-module deimos_noirFFI {
-    header "deimos_noirFFI.h"
+module deimos_barretenbergFFI {
+    header "deimos_barretenbergFFI.h"
     export *
 }

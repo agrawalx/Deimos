@@ -4,8 +4,9 @@ target_adapters = [
     "circom",
     "halo2",
 ]
-target_platforms = ["android"]
+target_platforms = ["android", "ios"]
 android = ["aarch64-linux-android"]
+ios = ["aarch64-apple-ios", "aarch64-apple-ios-sim"]
 auto_update = false
 
 [update]

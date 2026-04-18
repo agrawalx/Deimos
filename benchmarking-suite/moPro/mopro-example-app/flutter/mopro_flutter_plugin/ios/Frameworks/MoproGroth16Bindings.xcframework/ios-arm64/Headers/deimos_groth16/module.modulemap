@@ -1,4 +1,4 @@
-module deimos_circomFFI {
-    header "deimos_circomFFI.h"
+module deimos_groth16FFI {
+    header "deimos_groth16FFI.h"
     export *
 }

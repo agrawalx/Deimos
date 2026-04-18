@@ -1,13 +1,18 @@
+//! iOS Pass 2 — Barretenberg only.
+//!
+//! Swapped into `src/lib.rs` by `generate_ios_bindings.sh` for the second of
+//! two iOS build passes. `noir_rs` is a heavy dependency tree and isolating
+//! it in its own crate keeps link times for the other backends reasonable.
+
 mopro_ffi::app!();
 
-/// Barretenberg-only MoproError for single-backend configurations.
+/// Barretenberg-pass `MoproError`.
 #[derive(Debug, thiserror::Error, uniffi::Error)]
 pub enum MoproError {
-    #[error("Barretenberg error: {0}")]
+    #[error("BarretenbergError: {0}")]
     BarretenbergError(String),
 }
 
-/// Returns a greeting string to verify FFI connectivity.
 #[uniffi::export]
 fn mopro_uniffi_hello_world() -> String {
     "Hello, World!".to_string()
@@ -16,7 +21,6 @@ fn mopro_uniffi_hello_world() -> String {
 #[macro_use]
 mod stubs;
 
-// Barretenberg (Noir/UltraHonk) backend
 mod barretenberg;
 
 #[cfg(test)]

@@ -11,7 +11,7 @@ import { BarCharts } from '@/components/benchmarks/bar-charts';
 import { LineCharts } from '@/components/benchmarks/line-charts';
 import { cn } from '@/lib/utils';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? '';
 
 export default function ChartsPage() {
   const [circuits, setCircuits] = useState<string[]>([]);
