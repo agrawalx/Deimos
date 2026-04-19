@@ -270,7 +270,7 @@ public class MoproFlutterPlugin: NSObject, FlutterPlugin {
 
       DispatchQueue.global(qos: .userInitiated).async {
         do {
-          let res = try risc0Verify(receiptBytes: [UInt8](receiptBytes.data))
+          let res = try risc0Verify(receiptBytes: receiptBytes.data)
           DispatchQueue.main.async {
             result([
               "isValid": res.isValid,
@@ -325,7 +325,7 @@ public class MoproFlutterPlugin: NSObject, FlutterPlugin {
 
       DispatchQueue.global(qos: .userInitiated).async {
         do {
-          let verifyOutput = try cairoVerify(proof: [UInt8](proof.data))
+          let verifyOutput = try cairoVerify(proof: proof.data)
           DispatchQueue.main.async {
             result(["is_valid": verifyOutput.isValid])
           }
@@ -376,7 +376,7 @@ public class MoproFlutterPlugin: NSObject, FlutterPlugin {
 
       DispatchQueue.global(qos: .userInitiated).async {
         do {
-          let verifyOutput = try provekitVerify(verifierPath: verifierPath, proof: [UInt8](proof.data))
+          let verifyOutput = try provekitVerify(verifierPath: verifierPath, proof: proof.data)
           DispatchQueue.main.async {
             result(["is_valid": verifyOutput.isValid])
           }

@@ -860,9 +860,10 @@ class _ProofResultPageState extends State<ProofResultPage> {
   Future<String> _generateIMP1Proof() async {
     // Get circuit name (lowercase)
     final circuitName = CircuitUtils.getImp1CircuitName(widget.algorithm, widget.selectedInputName);
-    
+
     // Capture memory and battery BEFORE proof generation
-    _freeMemoryBeforeProof = SysInfo.getFreePhysicalMemory();
+    final memSnapshotBefore = await DeviceStatsService.getMemorySnapshot();
+    _freeMemoryBeforeProof = memSnapshotBefore.free;
     final battery = Battery();
     _batteryBeforeProof = await battery.batteryLevel;
     
@@ -879,11 +880,12 @@ class _ProofResultPageState extends State<ProofResultPage> {
     
     // Stop timing
     stopwatch.stop();
-    
+
     // Capture memory and battery AFTER proof generation
-    _freeMemoryAfterProof = SysInfo.getFreePhysicalMemory();
+    final memSnapshotAfter = await DeviceStatsService.getMemorySnapshot();
+    _freeMemoryAfterProof = memSnapshotAfter.free;
     _batteryAfterProof = await battery.batteryLevel;
-    
+
     // Store the proof result for verification
     setState(() {
       _imp1ProofResult = proofResult;
@@ -1338,11 +1340,12 @@ Timestamp: ${DateTime.now().millisecondsSinceEpoch}
       inputsJson = '[[${inputData.join(', ')}], ${inputData.length}]';
     } else {
       // Fallback
-      inputsJson = '[[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0], 1]'; 
+      inputsJson = '[[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0], 1]';
     }
-    
+
     // Capture memory and battery BEFORE proof generation
-    _freeMemoryBeforeProof = SysInfo.getFreePhysicalMemory();
+    final memSnapshotBefore = await DeviceStatsService.getMemorySnapshot();
+    _freeMemoryBeforeProof = memSnapshotBefore.free;
     final battery = Battery();
     _batteryBeforeProof = await battery.batteryLevel;
 
@@ -1360,7 +1363,8 @@ Timestamp: ${DateTime.now().millisecondsSinceEpoch}
 
     stopwatch.stop();
     // Capture memory and battery AFTER proof generation
-    _freeMemoryAfterProof = SysInfo.getFreePhysicalMemory();
+    final memSnapshotAfter = await DeviceStatsService.getMemorySnapshot();
+    _freeMemoryAfterProof = memSnapshotAfter.free;
     _batteryAfterProof = await battery.batteryLevel;
 
     setState(() {
